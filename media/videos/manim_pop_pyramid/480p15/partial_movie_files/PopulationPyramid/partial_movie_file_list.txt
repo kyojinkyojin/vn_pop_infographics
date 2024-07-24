@@ -1,2 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:E:/VN_pop/media/videos/manim_pop_pyramid/480p15/partial_movie_files/PopulationPyramid/1834055952_870759823_858586271.mp4'

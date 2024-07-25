@@ -9,7 +9,7 @@ female_pop = [x*100/df['all_f'].iloc[0] for x in df['all_f'][1:]]
 
 print(male_pop)
 print(female_pop)
-d_font = "Times New Roman"
+d_font = "Montserrat"
 
 class PopulationPyramid(Scene):
     def construct(self):
@@ -25,7 +25,7 @@ class PopulationPyramid(Scene):
         male_bars = VGroup(*[
             Rectangle(
                 width=0, height=0.3, fill_color=BLUE, fill_opacity=0.8,
-                stroke_color=BLACK, stroke_width=1
+                stroke_color=BLACK, stroke_width=.5
             ).shift(LEFT * pop * 0.6 / 2 + DOWN * i * 0.4 + UP*3).add_updater(
                 lambda rect, pop=pop, i=i: rect.become(
                     Rectangle(
@@ -45,7 +45,7 @@ class PopulationPyramid(Scene):
         female_bars = VGroup(*[
             Rectangle(
                 width=0, height=0.3, fill_color=PINK, fill_opacity=0.8,
-                stroke_color=BLACK, stroke_width=1
+                stroke_color=BLACK, stroke_width=.5
             ).shift(RIGHT * pop * 0.6 / 2 + DOWN * i * 0.4 + UP*5).add_updater(
                 lambda rect, pop=pop, i=i: rect.become(
                     Rectangle(
@@ -96,6 +96,7 @@ class PopulationPyramid(Scene):
         self.add(female_bars, male_bars, male_labels, female_labels)
 
         # Animate the scaling
-        anim = LaggedStart(*[scale_tracker.animate.set_value(1), Create(age_labels_l), Create(age_labels_r)], lag_ratio=0.4)
+        anim = LaggedStart(*[DrawBorderThenFill(age_labels_l), DrawBorderThenFill(age_labels_r)], lag_ratio=0.4)
+        self.play(scale_tracker.animate.set_value(1), run_time=2, rate_func=rate_functions.ease_in_out_cubic)
         self.play(anim, run_time=2, rate_func=rate_functions.ease_in_out_cubic)
 

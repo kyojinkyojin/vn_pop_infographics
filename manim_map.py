@@ -19,12 +19,12 @@ regions_df['geometry'] = regions_df['geometry'].apply(lambda x: wkt.loads(x))
 # Convert DataFrame to GeoDataFrame
 regions_gdf = gpd.GeoDataFrame(regions_df, geometry='geometry')
 regions_gdf['coords'] = regions_gdf['coords'].apply(ast.literal_eval)
-len_df = len(regions_df)
 #regions_gdf['geometry'] = regions_gdf['geometry'].apply(lambda geom: geom.convex_hull if geom.geom_type == 'MultiPolygon' else geom) #envelope(geom)
 
 #select_area
 #select_regions = ["HA NOI", "BAC NINH", "THAI NGUYEN", "HUNG YEN"]
 #regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)]
+len_df = len(regions_gdf)
 #print(regions_gdf)
 
 #get_boundaries
@@ -41,7 +41,7 @@ buff_y = (max_y-min_y)/2
 query = "population"
 dfac = 2*10**5
 cmap = plt.get_cmap('plasma')
-norm = plt.Normalize(regions_gdf[query].min()/dfac, regions_gdf[query].max()/dfac)
+norm = plt.Normalize(regions_gdf[query].quantile(0.05)/dfac, regions_gdf[query].quantile(0.96)/dfac)
 
 # Helper Functions Section
 # ------------------------
@@ -72,7 +72,7 @@ def create_Polyhedron(axes, border_xy, height):
     # Create polygon area
     points = axes.c2p(border_xy)
     top_face = Polygon(*[point + np.array([0, 0, height]) for point in points], fill_opacity=1, color=hex_color, stroke_width=1)
-    bottom_face = Polygon(*points, fill_opacity=0.5, color=hex_color, stroke_width=1)
+    bottom_face = Polygon(*points, fill_opacity=1, color=hex_color, stroke_width=1)
     top_center = top_face.get_center()
 
     return line, top_face, bottom_face, top_center
@@ -101,16 +101,16 @@ def calc_side_faces(polygon, height):
 class Animate_pop(ThreeDScene):
     def construct(self):
         self.camera.background_color = WHITE
-        self.set_camera_orientation(phi=5 * DEGREES, theta=-110 * DEGREES)
+        self.set_camera_orientation(phi=10 * DEGREES, theta=-90 * DEGREES)
         self.camera.set_focal_distance(100000)
         
         # Set up Manim Axis
     
         axes = Axes(
-            x_range=[min_x - buff_x, max_x + buff_x],
-            y_range=[min_y - buff_y, max_y + buff_y],
+            x_range=[min_x, max_x],
+            y_range=[min_y, max_y],
             axis_config={"color": BLUE},
-        )
+        ).scale(.5)
         # Loop through each region in the data
         count = 0
         for idx, row in regions_gdf.iterrows():

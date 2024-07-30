@@ -10,7 +10,7 @@ import ast
 
 df = pd.read_csv("./cleaned/vietnam_adm_lvl2.csv", index_col=0)
 
-regions_df = df.copy()
+regions_df = df.copy().fillna(0)
 
 # Convert geometry strings to actual Polygon objects
 regions_df['geometry'] = regions_df['geometry'].apply(lambda x: wkt.loads(x))
@@ -19,19 +19,29 @@ regions_df['geometry'] = regions_df['geometry'].apply(lambda x: wkt.loads(x))
 # Convert DataFrame to GeoDataFrame
 regions_gdf = gpd.GeoDataFrame(regions_df, geometry='geometry')
 regions_gdf['coords'] = regions_gdf['coords'].apply(ast.literal_eval)
+len_df = len(regions_df)
 #regions_gdf['geometry'] = regions_gdf['geometry'].apply(lambda geom: geom.convex_hull if geom.geom_type == 'MultiPolygon' else geom) #envelope(geom)
 
 #select_area
-regions_gdf = regions_gdf[regions_gdf['region']=="HA NOI"]
-print(regions_gdf)
+#select_regions = ["HA NOI", "BAC NINH", "THAI NGUYEN", "HUNG YEN"]
+#regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)]
+#print(regions_gdf)
 
 #get_boundaries
 big_polygon = envelope(regions_gdf.union_all())
 polygon_border_xy = np.array(big_polygon.boundary.coords)
+min_x = min(polygon_border_xy[:,0])
+max_x = max(polygon_border_xy[:,0])
+min_y = min(polygon_border_xy[:,1])
+max_y = max(polygon_border_xy[:,1])
+buff_x = (max_x-min_x)/2
+buff_y = (max_y-min_y)/2
 
-# Color Mapping Setup
+# Color Mapping Setup'
+query = "population"
+dfac = 2*10**5
 cmap = plt.get_cmap('plasma')
-norm = plt.Normalize(regions_gdf['density'].min(), regions_gdf['density'].max())
+norm = plt.Normalize(regions_gdf[query].min()/dfac, regions_gdf[query].max()/dfac)
 
 # Helper Functions Section
 # ------------------------
@@ -45,23 +55,10 @@ def get_line_coord(polygon) -> list:
         border_xy = [np.array(polygon.boundary.coords)]
     return border_xy
 
-#need additional fixes
-def calc_side_faces(points):
-    side_faces = VGroup()
-    for i in range(len(points)):
-        next_i = (i + 1) % len(points)
-        side_face = Polygon(
-            points[i],
-            points[next_i],
-            points[next_i] + np.array([0, 0, height]),
-            points[i] + np.array([0, 0, height]),
-        )
-        side_faces.add(side_face)
-    return side_faces
 
 # Create line and polygon (area) with color based on population density
-def create_Polyhedron(axes, border_xy, density):
-    color = cmap(norm(density))
+def create_Polyhedron(axes, border_xy, height):
+    color = cmap(norm(height))
     hex_color = rgb2hex(*color)
     
     # Create line graph
@@ -73,47 +70,64 @@ def create_Polyhedron(axes, border_xy, density):
     )
     
     # Create polygon area
-    points = axes.coords_to_point(border_xy)
-    top_face = Polygon(*[points + np.array([0, 0, density])])
+    points = axes.c2p(border_xy)
+    top_face = Polygon(*[point + np.array([0, 0, height]) for point in points], fill_opacity=1, color=hex_color, stroke_width=1)
     bottom_face = Polygon(*points, fill_opacity=0.5, color=hex_color, stroke_width=1)
+    top_center = top_face.get_center()
 
+    return line, top_face, bottom_face, top_center
 
-    dist_center = top_face.get_center()
-
-    return line, polyhedron, dist_center
+#need additional fixes
+def calc_side_faces(polygon, height):
+    color = cmap(norm(height-0.2))
+    hex_color = rgb2hex(*color)
+    side_faces = VGroup()
+    points = polygon.get_vertices()
+    for i in range(len(points)):
+        next_i = (i + 1) % len(points)
+        side_face = Polygon(*[
+            points[i],
+            points[next_i],
+            points[next_i] + np.array([0, 0, height]),
+            points[i] + np.array([0, 0, height]),
+        ], fill_opacity=1, color=hex_color, stroke_width=1)
+        side_faces.add(side_face)
+    return side_faces
 
 
 # Animation Class Section
 # -----------------------
-buff = 0.3
+
 class Animate_pop(ThreeDScene):
     def construct(self):
         self.camera.background_color = WHITE
+        self.set_camera_orientation(phi=5 * DEGREES, theta=-110 * DEGREES)
+        self.camera.set_focal_distance(100000)
         
         # Set up Manim Axis
-        min_x = min(polygon_border_xy[:,0]) - buff
-        max_x = max(polygon_border_xy[:,0]) + buff
-        min_y = min(polygon_border_xy[:,1]) - buff
-        max_y = max(polygon_border_xy[:,1]) + buff
-        
+    
         axes = Axes(
-            x_range=[min_x, max_x],
-            y_range=[min_y, max_y],
+            x_range=[min_x - buff_x, max_x + buff_x],
+            y_range=[min_y - buff_y, max_y + buff_y],
             axis_config={"color": BLUE},
         )
         # Loop through each region in the data
-        for row in regions_gdf.itertuples():
+        count = 0
+        for idx, row in regions_gdf.iterrows():
             geometry = row.geometry
-            density = row.density
-            district = row.dist
+            height = row[query]/dfac
+            count += 1
+            print(f"{height}:{count}/{len_df}")
             border_xy = get_line_coord(geometry)
             for bor_xy in border_xy:
-                region_line, region_area, center = create_Polyhedron(axes, bor_xy, density)
-                self.add(region_line, region_area)
+                region_line, region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
+                side_faces = calc_side_faces(region_bottomface, height)
+                polyh = VGroup(region_bottomface, side_faces, region_topface)
+                self.add(region_line, polyh)
             
-            region_label = Text(f"{district}", font_size=12, color=BLACK, font="montserrat") #{density:.2f} per km²
-            region_label.move_to(center)
-            self.add(region_label)
+            #region_label = Text(f"{district}", font_size=12, color=BLACK, font="Arial") #{density:.2f} per km²
+            #region_label.move_to(center)
+            #self.add(region_label)
                 
             #self.play(Create(region_line), Write(region_label), run_time=2)
             #self.play(Create(region_area), run_time=2)

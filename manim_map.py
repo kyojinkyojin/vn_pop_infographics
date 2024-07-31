@@ -19,11 +19,11 @@ regions_df['geometry'] = regions_df['geometry'].apply(lambda x: wkt.loads(x))
 # Convert DataFrame to GeoDataFrame
 regions_gdf = gpd.GeoDataFrame(regions_df, geometry='geometry')
 regions_gdf['coords'] = regions_gdf['coords'].apply(ast.literal_eval)
-#regions_gdf['geometry'] = regions_gdf['geometry'].apply(lambda geom: geom.convex_hull if geom.geom_type == 'MultiPolygon' else geom) #envelope(geom)
 
 #select_area
-#select_regions = ["HA NOI", "BAC NINH", "THAI NGUYEN", "HUNG YEN"]
-#regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)]
+select_regions = ["HA NOI"]
+query = "population"
+regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)].sort_values(by=query, ascending=False)
 len_df = len(regions_gdf)
 #print(regions_gdf)
 
@@ -38,7 +38,6 @@ buff_x = (max_x-min_x)/2
 buff_y = (max_y-min_y)/2
 
 # Color Mapping Setup'
-query = "population"
 dfac = 2*10**5
 cmap = plt.get_cmap('plasma')
 norm = plt.Normalize(regions_gdf[query].quantile(0.05)/dfac, regions_gdf[query].quantile(0.96)/dfac)
@@ -55,7 +54,6 @@ def get_line_coord(polygon) -> list:
         border_xy = [np.array(polygon.boundary.coords)]
     return border_xy
 
-
 # Create line and polygon (area) with color based on population density
 def create_Polyhedron(axes, border_xy, height):
     color = cmap(norm(height))
@@ -63,7 +61,7 @@ def create_Polyhedron(axes, border_xy, height):
     
     # Create line graph
     line = axes.plot_line_graph(
-        border_xy[:, 0], border_xy[:, 1], 
+        border_xy[:, 0], border_xy[:, 1],
         add_vertex_dots=False,
         line_color=BLACK, 
         stroke_width=1
@@ -83,6 +81,7 @@ def calc_side_faces(polygon, height):
     hex_color = rgb2hex(*color)
     side_faces = VGroup()
     points = polygon.get_vertices()
+    #z_level = min([y for x,y,z in points]) + 10
     for i in range(len(points)):
         next_i = (i + 1) % len(points)
         side_face = Polygon(*[
@@ -90,7 +89,7 @@ def calc_side_faces(polygon, height):
             points[next_i],
             points[next_i] + np.array([0, 0, height]),
             points[i] + np.array([0, 0, height]),
-        ], fill_opacity=1, color=hex_color, stroke_width=1)
+        ], fill_opacity=1, color=hex_color, stroke_width=1, stroke_opacity=1)
         side_faces.add(side_face)
     return side_faces
 
@@ -100,31 +99,36 @@ def calc_side_faces(polygon, height):
 
 class Animate_pop(ThreeDScene):
     def construct(self):
-        self.camera.background_color = WHITE
-        self.set_camera_orientation(phi=10 * DEGREES, theta=-90 * DEGREES)
+        self.camera.background_color = BLACK
+        self.set_camera_orientation(phi=30 * DEGREES, theta=-100 * DEGREES)
         self.camera.set_focal_distance(100000)
-        
-        # Set up Manim Axis
+        self.begin_ambient_camera_rotation(rate=30*DEGREES, about='theta')
     
         axes = Axes(
             x_range=[min_x, max_x],
             y_range=[min_y, max_y],
-            axis_config={"color": BLUE},
-        ).scale(.5)
+            axis_config={"color": WHITE},
+        ).scale(.5).set_z_index(0)
+        x_label = Tex("x").next_to(axes.x_axis.get_end(), RIGHT)
+        y_label = Tex("y").next_to(axes.y_axis.get_end(), UP)
+        self.add(axes)
+        self.add(x_label, y_label)
         # Loop through each region in the data
         count = 0
-        for idx, row in regions_gdf.iterrows():
+        for idx, row in regions_gdf.iterrows(): #sort_values(by='coords', ascending=True).
             geometry = row.geometry
             height = row[query]/dfac
             count += 1
-            print(f"{height}:{count}/{len_df}")
             border_xy = get_line_coord(geometry)
             for bor_xy in border_xy:
                 region_line, region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
-                side_faces = calc_side_faces(region_bottomface, height)
-                polyh = VGroup(region_bottomface, side_faces, region_topface)
-                self.add(region_line, polyh)
-            
+                side_faces = calc_side_faces(region_bottomface, height).set_z_index(count)
+                polyh = VGroup(region_bottomface, side_faces, region_topface).set_shade_in_3d(True)
+                print(self.camera.is_in_frame(side_faces))
+                self.add(polyh)
+                #print(polyh.get_z_index_reference_point)
+
+        self.wait(3)
             #region_label = Text(f"{district}", font_size=12, color=BLACK, font="Arial") #{density:.2f} per km²
             #region_label.move_to(center)
             #self.add(region_label)

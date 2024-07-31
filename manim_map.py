@@ -23,7 +23,8 @@ regions_gdf['coords'] = regions_gdf['coords'].apply(ast.literal_eval)
 #select_area
 select_regions = ["HA NOI"]
 query = "population"
-regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)].sort_values(by=query, ascending=False)
+#regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)].sort_values(by=query, ascending=False)
+regions_gdf = regions_gdf.sort_values(by=query, ascending=False)
 len_df = len(regions_gdf)
 #print(regions_gdf)
 
@@ -40,7 +41,7 @@ buff_y = (max_y-min_y)/2
 # Color Mapping Setup'
 dfac = 2*10**5
 cmap = plt.get_cmap('plasma')
-norm = plt.Normalize(regions_gdf[query].quantile(0.05)/dfac, regions_gdf[query].quantile(0.96)/dfac)
+norm = plt.Normalize(regions_gdf[query].quantile(0.05)/dfac, regions_gdf[query].quantile(0.98)/dfac)
 
 # Helper Functions Section
 # ------------------------
@@ -59,21 +60,13 @@ def create_Polyhedron(axes, border_xy, height):
     color = cmap(norm(height))
     hex_color = rgb2hex(*color)
     
-    # Create line graph
-    line = axes.plot_line_graph(
-        border_xy[:, 0], border_xy[:, 1],
-        add_vertex_dots=False,
-        line_color=BLACK, 
-        stroke_width=1
-    )
-    
     # Create polygon area
     points = axes.c2p(border_xy)
     top_face = Polygon(*[point + np.array([0, 0, height]) for point in points], fill_opacity=1, color=hex_color, stroke_width=1)
     bottom_face = Polygon(*points, fill_opacity=1, color=hex_color, stroke_width=1)
     top_center = top_face.get_center()
 
-    return line, top_face, bottom_face, top_center
+    return top_face, bottom_face, top_center
 
 #need additional fixes
 def calc_side_faces(polygon, height):
@@ -100,7 +93,7 @@ def calc_side_faces(polygon, height):
 class Animate_pop(ThreeDScene):
     def construct(self):
         self.camera.background_color = BLACK
-        self.set_camera_orientation(phi=30 * DEGREES, theta=-100 * DEGREES)
+        self.set_camera_orientation(phi=10 * DEGREES, theta=-100 * DEGREES)
         self.camera.set_focal_distance(100000)
         self.begin_ambient_camera_rotation(rate=30*DEGREES, about='theta')
     
@@ -121,14 +114,15 @@ class Animate_pop(ThreeDScene):
             count += 1
             border_xy = get_line_coord(geometry)
             for bor_xy in border_xy:
-                region_line, region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
+                region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
                 side_faces = calc_side_faces(region_bottomface, height).set_z_index(count)
                 polyh = VGroup(region_bottomface, side_faces, region_topface).set_shade_in_3d(True)
                 print(self.camera.is_in_frame(side_faces))
+                print(count)
                 self.add(polyh)
                 #print(polyh.get_z_index_reference_point)
 
-        self.wait(3)
+        #self.wait(3)
             #region_label = Text(f"{district}", font_size=12, color=BLACK, font="Arial") #{density:.2f} per km²
             #region_label.move_to(center)
             #self.add(region_label)

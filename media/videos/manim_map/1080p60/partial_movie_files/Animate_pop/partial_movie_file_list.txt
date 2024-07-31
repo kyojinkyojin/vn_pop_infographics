@@ -1,0 +1,2 @@
+# This file is used internally by FFMPEG.
+file 'file:E:/data_proj_2024/vn_pop_infographics/media/videos/manim_map/1080p60/partial_movie_files/Animate_pop/1557271860_1905060548_2952008407.mp4'

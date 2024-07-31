@@ -23,8 +23,8 @@ regions_gdf['coords'] = regions_gdf['coords'].apply(ast.literal_eval)
 #select_area
 select_regions = ["HA NOI"]
 query = "population"
-#regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)].sort_values(by=query, ascending=False)
-regions_gdf = regions_gdf.sort_values(by=query, ascending=False)
+regions_gdf = regions_gdf[regions_gdf['region'].isin(select_regions)].sort_values(by=query, ascending=False)
+#regions_gdf = regions_gdf.sort_values(by=query, ascending=False)
 len_df = len(regions_gdf)
 #print(regions_gdf)
 
@@ -97,11 +97,12 @@ class Animate_pop(ThreeDScene):
         self.camera.set_focal_distance(100000)
         self.begin_ambient_camera_rotation(rate=30*DEGREES, about='theta')
     
-        axes = Axes(
+        axes = ThreeDAxes(
             x_range=[min_x, max_x],
             y_range=[min_y, max_y],
+            z_range=[0, 4],
             axis_config={"color": WHITE},
-        ).scale(.5).set_z_index(0)
+        ).scale(.3).set_z_index(0)
         x_label = Tex("x").next_to(axes.x_axis.get_end(), RIGHT)
         y_label = Tex("y").next_to(axes.y_axis.get_end(), UP)
         self.add(axes)
@@ -115,11 +116,11 @@ class Animate_pop(ThreeDScene):
             border_xy = get_line_coord(geometry)
             for bor_xy in border_xy:
                 region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
-                side_faces = calc_side_faces(region_bottomface, height).set_z_index(count)
-                polyh = VGroup(region_bottomface, side_faces, region_topface).set_shade_in_3d(True)
+                side_faces = calc_side_faces(region_bottomface, height) #.set_z_index(count)
+                polyh = VGroup(region_bottomface, *side_faces, region_topface).set_shade_in_3d(True)
                 print(self.camera.is_in_frame(side_faces))
                 print(count)
-                self.add(polyh)
+                self.add(*polyh)
                 #print(polyh.get_z_index_reference_point)
 
         #self.wait(3)

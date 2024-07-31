@@ -94,9 +94,11 @@ class Animate_pop(ThreeDScene):
     def construct(self):
         self.camera.background_color = BLACK
         self.set_camera_orientation(phi=10 * DEGREES, theta=-100 * DEGREES)
-        self.camera.set_focal_distance(100000)
+        self.camera.shading_factor = .3
+        self.camera.default_distance = 200
+        self.camera.set_focal_distance(10000)
         self.begin_ambient_camera_rotation(rate=30*DEGREES, about='theta')
-    
+        #print(self.camera.get_position())
         axes = ThreeDAxes(
             x_range=[min_x, max_x],
             y_range=[min_y, max_y],
@@ -109,21 +111,20 @@ class Animate_pop(ThreeDScene):
         self.add(x_label, y_label)
         # Loop through each region in the data
         count = 0
-        for idx, row in regions_gdf.iterrows(): #sort_values(by='coords', ascending=True).
+        for idx, row in regions_gdf.sort_values(by='coords', ascending=True).iterrows(): #
             geometry = row.geometry
             height = row[query]/dfac
             count += 1
             border_xy = get_line_coord(geometry)
             for bor_xy in border_xy:
                 region_topface, region_bottomface, center = create_Polyhedron(axes, bor_xy, height)
-                side_faces = calc_side_faces(region_bottomface, height) #.set_z_index(count)
-                polyh = VGroup(region_bottomface, *side_faces, region_topface).set_shade_in_3d(True)
-                print(self.camera.is_in_frame(side_faces))
-                print(count)
+                side_faces = calc_side_faces(region_bottomface, height)
+                polyh = VGroup(region_bottomface, *side_faces, region_topface).set_shade_in_3d(True, z_index_as_group=True)
+                #print(count)
                 self.add(*polyh)
                 #print(polyh.get_z_index_reference_point)
 
-        #self.wait(3)
+        self.wait(3)
             #region_label = Text(f"{district}", font_size=12, color=BLACK, font="Arial") #{density:.2f} per km²
             #region_label.move_to(center)
             #self.add(region_label)
